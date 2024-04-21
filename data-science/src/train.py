@@ -11,43 +11,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import seaborn as sns
 
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_predict
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, classification_report, precision_recall_curve, roc_curve, confusion_matrix
 
 import mlflow
 import mlflow.sklearn
+from mlflow.models import infer_signature
 
-TARGET_COL = "cost"
-
-NUMERIC_COLS = [
-    "distance",
-    "dropoff_latitude",
-    "dropoff_longitude",
-    "passengers",
-    "pickup_latitude",
-    "pickup_longitude",
-    "pickup_weekday",
-    "pickup_month",
-    "pickup_monthday",
-    "pickup_hour",
-    "pickup_minute",
-    "pickup_second",
-    "dropoff_weekday",
-    "dropoff_month",
-    "dropoff_monthday",
-    "dropoff_hour",
-    "dropoff_minute",
-    "dropoff_second",
-]
-
-CAT_NOM_COLS = [
-    "store_forward",
-    "vendor",
-]
-
-CAT_ORD_COLS = [
-]
+TARGET_COL = "satisfaction"
 
 
 def parse_args():
@@ -83,54 +61,161 @@ def main(args):
 
     # Split the data into input(X) and output(y)
     y_train = train_data[TARGET_COL]
-    X_train = train_data[NUMERIC_COLS + CAT_NOM_COLS + CAT_ORD_COLS]
+    X_train = train_data.drop(TARGET_COL, axis=1)
 
-    # Train a Random Forest Regression Model with the training set
-    model = RandomForestRegressor(n_estimators = args.regressor__n_estimators,
-                                  bootstrap = args.regressor__bootstrap,
-                                  max_depth = args.regressor__max_depth,
-                                  max_features = args.regressor__max_features,
-                                  min_samples_leaf = args.regressor__min_samples_leaf,
-                                  min_samples_split = args.regressor__min_samples_split,
-                                  random_state=0)
-
-    # log model hyperparameters
-    mlflow.log_param("model", "RandomForestRegressor")
-    mlflow.log_param("n_estimators", args.regressor__n_estimators)
-    mlflow.log_param("bootstrap", args.regressor__bootstrap)
-    mlflow.log_param("max_depth", args.regressor__max_depth)
-    mlflow.log_param("max_features", args.regressor__max_features)
-    mlflow.log_param("min_samples_leaf", args.regressor__min_samples_leaf)
-    mlflow.log_param("min_samples_split", args.regressor__min_samples_split)
-
-    # Train model with the train set
-    model.fit(X_train, y_train)
-
-    # Predict using the Regression Model
-    yhat_train = model.predict(X_train)
-
-    # Evaluate Regression performance with the train set
-    r2 = r2_score(y_train, yhat_train)
-    mse = mean_squared_error(y_train, yhat_train)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(y_train, yhat_train)
+    # remapping target variables -> "{satisfied:1, "neutral or dissatisfied: 0"}"
+    y_train = np.where(y_train == 'satisfied', 1, 0)
     
-    # log model performance metrics
-    mlflow.log_metric("train r2", r2)
-    mlflow.log_metric("train mse", mse)
-    mlflow.log_metric("train rmse", rmse)
-    mlflow.log_metric("train mae", mae)
+    # identifying numerical and categorical variables
+    num_attribs = X_train.select_dtypes(exclude=object).columns
+    cat_attribs = X_train.select_dtypes(include=object).columns
 
-    # Visualize results
-    plt.scatter(y_train, yhat_train,  color='black')
-    plt.plot(y_train, y_train, color='blue', linewidth=3)
-    plt.xlabel("Real value")
-    plt.ylabel("Predicted value")
-    plt.savefig("regression_results.png")
-    mlflow.log_artifact("regression_results.png")
 
-    # Save the model
-    mlflow.sklearn.save_model(sk_model=model, path=args.model_output)
+    # Transformer Class to handle dataframe selection
+    class DataFrameSelector(BaseEstimator, TransformerMixin):
+        def __init__(self, attrib_names):
+            self.attrib_names = attrib_names
+            
+        def fit(self, X, y=None):
+            return self
+        
+        def transform(self, X):
+            return X[self.attrib_names]
+
+
+    # Transformer Class to handle categorical data encoding
+    class Encode(BaseEstimator, TransformerMixin):
+        def __init__(self, attrib_names):
+            self.attrib_names = attrib_names
+            
+        def fit(self, X, y=None):
+            return self
+        
+        def transform(self, X):
+            X = X[self.attrib_names].copy()
+            X['Customer Type'] = np.where(X['Customer Type'] == 'Loyal Customer', 1, 0)
+            X['Type of Travel'] = np.where(X['Type of Travel'] == 'Business travel', 1, 0)
+            X = pd.concat([X, X['Class'].str.get_dummies()], axis=1).drop('Class', axis=1)
+            return X
+
+
+    # creating a numerical processing pipeline
+    num_pipeline = Pipeline([
+        ('Select dataframe', DataFrameSelector(num_attribs)),
+        ('imputer', SimpleImputer(strategy = 'median')),
+        ('scaler', StandardScaler())
+    ])
+
+    # creating a categorical processing pipeline 
+    cat_pipeline = Pipeline([
+        ('cat_encoder', Encode(cat_attribs))
+    ])
+
+    # full transformation pipeline
+    full_pipeline = FeatureUnion(transformer_list = [
+        ('numerical', num_pipeline),
+        ('categorical', cat_pipeline)
+    ])
+
+    # applying transformation pieline
+    X_train_scaled = full_pipeline.fit_transform(X_train)
+    
+    # creating mlflow experiment 
+    mlflow.create_experiment("passenger-satisfaction-training")
+       
+    # starting mlflow run
+    with mlflow.start_run(run_name="model-training") as run:
+        run_id = run.info.run_id
+        
+        # logging transformation pipeline
+        mlflow.sklearn.log_model(full_pipeline, artifact_path="feature_engineering")
+
+        # infering data signature
+        signature = infer_signature(X_train, y_train)
+        
+        # Train a Random Forest Regression Model with the training set
+        model = RandomForestClassifier(n_estimators = args.regressor__n_estimators,
+                                    bootstrap = args.regressor__bootstrap,
+                                    max_depth = args.regressor__max_depth,
+                                    max_features = args.regressor__max_features,
+                                    min_samples_leaf = args.regressor__min_samples_leaf,
+                                    min_samples_split = args.regressor__min_samples_split,
+                                    random_state=11)
+
+        # log model hyperparameters
+        mlflow.log_param("model", "RandomForestClassifier")
+        mlflow.log_param("n_estimators", args.regressor__n_estimators)
+        mlflow.log_param("bootstrap", args.regressor__bootstrap)
+        mlflow.log_param("max_depth", args.regressor__max_depth)
+        mlflow.log_param("max_features", args.regressor__max_features)
+        mlflow.log_param("min_samples_leaf", args.regressor__min_samples_leaf)
+        mlflow.log_param("min_samples_split", args.regressor__min_samples_split)
+
+        # Train model with the train set
+        model.fit(X_train_scaled, y_train)
+
+        # Predict using the Regression Model
+        pred = model.predict(X_train_scaled)
+
+        # Evaluate Regression performance with the train set
+        f1score = f1_score(y_train, pred)
+        pr_score = precision_score(y_train, pred)
+        re_score = recall_score(y_train, pred)
+        roc_score = roc_auc_score(y_train, pred)
+        
+        # log model performance metrics
+        mlflow.log_metrics({
+            "f1_score": f1score,
+            "precision_score": pr_score,
+            "recall_score": re_score,
+            "roc_auc_score": roc_score
+        })
+
+        # Visualize results
+        conf_matrix_pred = cross_val_predict(model, X_train_scaled, y_train, cv = 3)
+        conf_matrix = confusion_matrix(conf_matrix_pred, y_train)
+        conf_matrix = conf_matrix / conf_matrix.sum(axis=0)
+        
+        sns.heatmap(conf_matrix, annot = True, fmt = '.1%', cmap = 'gray_r', xticklabels = ['Predicted Negative','Predicted Positive'],
+                yticklabels = ['Actual Negative','Actual Positive'], annot_kws = {'weight':'bold', 'size':12})
+        plt.title('Confusion matrix of model predictions', fontsize = 16)
+        plt.savefig("confusion_matrix.png")
+        mlflow.log_artifact("confusion_matrix.png")
+
+        # Save the model
+        mlflow.sklearn.log_model(model, "random_forest_model",
+                                 registered_model_name="RandomForest-classifier-base", signature=signature)
+        
+        
+        class CustomPredict(mlflow.pyfunc.PythonModel):
+            def __init__(self,):
+                self.run_id = run_id
+                self.class_names = np.array(["neutral or dissatisfied", "satisfied"])
+                self.full_pipeline = full_pipeline
+                
+            def process_inference_data(self, model_input):
+                model_input = self.full_pipeline.transform(model_input)
+                return model_input
+            
+            def process_prediction(self, predictions):
+                predictions = predictions.astype(int)
+                class_names = self.class_names
+                class_predictions = [class_names[pred] for pred in predictions]
+                return class_predictions
+            
+            def load_context(self, context=None):
+                self.model = mlflow.sklearn.load_model(f"runs:/{self.run_id}/artifacts/random_forest") ###################
+                return self.model
+            
+            def predict(self, context, model_input):
+                model = self.load_context()
+                model_input = self.process_inference_data(model_input)
+                predictions = model.predict(model_input)
+                return self.process_prediction(predictions)
+
+
+        # logging the custom model
+        mlflow.pyfunc.log_model(artifact_path="custom_model", python_model=CustomPredict(), signature=signature)
 
 
 if __name__ == "__main__":

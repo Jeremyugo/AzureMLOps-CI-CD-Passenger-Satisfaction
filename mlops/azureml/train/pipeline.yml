@@ -1,20 +1,19 @@
 $schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
 type: pipeline
-experiment_name: taxi-fare-training
-experiment_name: taxi-fare-training
-description: Training Pipeline to train a model that predicts taxi fare price
+experiment_name: passenger-satisfaction-training
+experiment_name: passenger-satisfaction-training
+description: Training Pipeline to train a model that predicts passenger satisfaction
 
 # <inputs_and_outputs>
 inputs:
   input:
     type: uri_file
-    path: azureml:taxi-data@latest
+    path: azureml:passenger-data@latest
   enable_monitoring: 'false'
-  table_name: 'taximonitoring'
+  table_name: 'satisfactionmonitoring'
 
 outputs:
   train_data:
-  val_data:
   test_data:
   trained_model:
   evaluation_output:
@@ -36,18 +35,16 @@ jobs:
       python prep.py
       --raw_data ${{inputs.raw_data}}
       --train_data ${{outputs.train_data}}
-      --val_data ${{outputs.val_data}}
       --test_data ${{outputs.test_data}}
       --enable_monitoring ${{inputs.enable_monitoring}}
       --table_name ${{inputs.table_name}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:taxi-train-env@latest #####
     inputs:
       raw_data: ${{parent.inputs.input}}
       enable_monitoring: ${{parent.inputs.enable_monitoring}}
       table_name: ${{parent.inputs.table_name}}
     outputs:
       train_data: ${{parent.outputs.train_data}}
-      val_data: ${{parent.outputs.val_data}}
       test_data: ${{parent.outputs.test_data}}
 
   train_model:
@@ -58,7 +55,7 @@ jobs:
       python train.py
       --train_data ${{inputs.train_data}}
       --model_output ${{outputs.model_output}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:taxi-train-env@latest #####
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
     outputs:
@@ -74,7 +71,7 @@ jobs:
       --model_input ${{inputs.model_input}}
       --test_data ${{inputs.test_data}}
       --evaluation_output ${{outputs.evaluation_output}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:taxi-train-env@latest #####
     inputs:
       model_name: "taxi-model"
       model_input: ${{parent.jobs.train_model.outputs.model_output}}
@@ -92,7 +89,7 @@ jobs:
       --model_path ${{inputs.model_path}}
       --evaluation_output ${{inputs.evaluation_output}}
       --model_info_output_path ${{outputs.model_info_output_path}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:taxi-train-env@latest #####
     inputs:
       model_name: "taxi-model"
       model_path: ${{parent.jobs.train_model.outputs.model_output}}
