@@ -41,10 +41,10 @@ def main(args):
         print("Registering ", args.model_name)
 
         # load model
-        model =  mlflow.sklearn.load_model(args.model_path) 
+        model =  mlflow.pyfunc.load_model(args.model_path) 
 
         # log model using mlflow
-        mlflow.sklearn.log_model(model, args.model_name)
+        mlflow.pyfunc.log_model(model, args.model_name)
 
         # register logged model using mlflow
         run_id = mlflow.active_run().info.run_id

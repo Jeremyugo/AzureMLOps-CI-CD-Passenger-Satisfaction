@@ -19,7 +19,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_predict
-from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, classification_report, precision_recall_curve, roc_curve, confusion_matrix
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, confusion_matrix
 
 import mlflow
 import mlflow.sklearn
@@ -36,17 +36,17 @@ def parse_args():
     parser.add_argument("--model_output", type=str, help="Path of output model")
 
     # classifier specific arguments
-    parser.add_argument('--regressor__n_estimators', type=int, default=500,
+    parser.add_argument('--classifier__n_estimators', type=int, default=100,
                         help='Number of trees')
-    parser.add_argument('--regressor__bootstrap', type=int, default=1,
+    parser.add_argument('--classifier__bootstrap', type=int, default=True,
                         help='Method of selecting samples for training each tree')
-    parser.add_argument('--regressor__max_depth', type=int, default=10,
+    parser.add_argument('--classifier__max_depth', type=int, default=10,
                         help=' Maximum number of levels in tree')
-    parser.add_argument('--regressor__max_features', type=str, default='auto',
+    parser.add_argument('--classifier__max_features', type=str, default='sqrt',
                         help='Number of features to consider at every split')
-    parser.add_argument('--regressor__min_samples_leaf', type=int, default=4,
+    parser.add_argument('--classifier__min_samples_leaf', type=int, default=1,
                         help='Minimum number of samples required at each leaf node')
-    parser.add_argument('--regressor__min_samples_split', type=int, default=5,
+    parser.add_argument('--classifier__min_samples_split', type=int, default=2,
                         help='Minimum number of samples required to split a node')
 
     args = parser.parse_args()
@@ -63,7 +63,7 @@ def main(args):
     y_train = train_data[TARGET_COL]
     X_train = train_data.drop(TARGET_COL, axis=1)
 
-    # remapping target variables -> "{satisfied:1, "neutral or dissatisfied: 0"}"
+    # remapping target variables -> "{'satisfied': 1, 'neutral or dissatisfied': 0}"
     y_train = np.where(y_train == 'satisfied', 1, 0)
     
     # identifying numerical and categorical variables
@@ -121,7 +121,7 @@ def main(args):
     X_train_scaled = full_pipeline.fit_transform(X_train)
     
     # creating mlflow experiment 
-    mlflow.create_experiment("passenger-satisfaction-training")
+    mlflow.set_experiment("passenger-satisfaction-training")
        
     # starting mlflow run
     with mlflow.start_run(run_name="model-training") as run:
@@ -133,31 +133,31 @@ def main(args):
         # infering data signature
         signature = infer_signature(X_train, y_train)
         
-        # Train a Random Forest Regression Model with the training set
-        model = RandomForestClassifier(n_estimators = args.regressor__n_estimators,
-                                    bootstrap = args.regressor__bootstrap,
-                                    max_depth = args.regressor__max_depth,
-                                    max_features = args.regressor__max_features,
-                                    min_samples_leaf = args.regressor__min_samples_leaf,
-                                    min_samples_split = args.regressor__min_samples_split,
+        # Train a Random Forest Classification Model with the training set
+        model = RandomForestClassifier(n_estimators = args.classifier__n_estimators,
+                                    bootstrap = args.classifier__bootstrap,
+                                    max_depth = args.classifier__max_depth,
+                                    max_features = args.classifier__max_features,
+                                    min_samples_leaf = args.classifier__min_samples_leaf,
+                                    min_samples_split = args.classifier__min_samples_split,
                                     random_state=11)
 
         # log model hyperparameters
         mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", args.regressor__n_estimators)
-        mlflow.log_param("bootstrap", args.regressor__bootstrap)
-        mlflow.log_param("max_depth", args.regressor__max_depth)
-        mlflow.log_param("max_features", args.regressor__max_features)
-        mlflow.log_param("min_samples_leaf", args.regressor__min_samples_leaf)
-        mlflow.log_param("min_samples_split", args.regressor__min_samples_split)
+        mlflow.log_param("n_estimators", args.classifier__n_estimators)
+        mlflow.log_param("bootstrap", args.classifier__bootstrap)
+        mlflow.log_param("max_depth", args.classifier__max_depth)
+        mlflow.log_param("max_features", args.classifier__max_features)
+        mlflow.log_param("min_samples_leaf", args.classifier__min_samples_leaf)
+        mlflow.log_param("min_samples_split", args.classifier__min_samples_split)
 
         # Train model with the train set
         model.fit(X_train_scaled, y_train)
 
-        # Predict using the Regression Model
+        # Predict using the Classification Model
         pred = model.predict(X_train_scaled)
 
-        # Evaluate Regression performance with the train set
+        # Evaluate Classification performance with the train set
         f1score = f1_score(y_train, pred)
         pr_score = precision_score(y_train, pred)
         re_score = recall_score(y_train, pred)
@@ -183,8 +183,7 @@ def main(args):
         mlflow.log_artifact("confusion_matrix.png")
 
         # Save the model
-        mlflow.sklearn.log_model(model, "random_forest_model",
-                                 registered_model_name="RandomForest-classifier-base", signature=signature)
+        mlflow.sklearn.save_model(model, path="random_forest_model", signature=signature)
         
         
         class CustomPredict(mlflow.pyfunc.PythonModel):
@@ -204,7 +203,7 @@ def main(args):
                 return class_predictions
             
             def load_context(self, context=None):
-                self.model = mlflow.sklearn.load_model(f"runs:/{self.run_id}/artifacts/random_forest") ###################
+                self.model = mlflow.sklearn.load_model("random_forest_model") ###################
                 return self.model
             
             def predict(self, context, model_input):
@@ -215,13 +214,11 @@ def main(args):
 
 
         # logging the custom model
-        mlflow.pyfunc.log_model(artifact_path="custom_model", python_model=CustomPredict(), signature=signature)
+        mlflow.pyfunc.save_model(path=args.model_output, python_model=CustomPredict(), signature=signature)
 
 
 if __name__ == "__main__":
     
-    mlflow.start_run()
-
     # ---------- Parse Arguments ----------- #
     # -------------------------------------- #
 
@@ -230,12 +227,12 @@ if __name__ == "__main__":
     lines = [
         f"Train dataset input path: {args.train_data}",
         f"Model output path: {args.model_output}",
-        f"n_estimators: {args.regressor__n_estimators}",
-        f"bootstrap: {args.regressor__bootstrap}",
-        f"max_depth: {args.regressor__max_depth}",
-        f"max_features: {args.regressor__max_features}",
-        f"min_samples_leaf: {args.regressor__min_samples_leaf}",
-        f"min_samples_split: {args.regressor__min_samples_split}"
+        f"n_estimators: {args.classifier__n_estimators}",
+        f"bootstrap: {args.classifier__bootstrap}",
+        f"max_depth: {args.classifier__max_depth}",
+        f"max_features: {args.classifier__max_features}",
+        f"min_samples_leaf: {args.classifier__min_samples_leaf}",
+        f"min_samples_split: {args.classifier__min_samples_split}"
     ]
 
     for line in lines:
