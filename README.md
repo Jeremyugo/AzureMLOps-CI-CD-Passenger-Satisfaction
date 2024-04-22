@@ -18,4 +18,4 @@ To replicate this repo you will need an AzureML subscription and Azure DevOps ac
 ![classical-ml-architecture](https://github.com/Jeremyugo/AzureMLOps-CI-CD-Passenger-Satisfaction/assets/36512525/d2535fda-47bf-4c35-b1d1-f6d7093c0ea7)
 
 
-## Projects ongoing...
+
