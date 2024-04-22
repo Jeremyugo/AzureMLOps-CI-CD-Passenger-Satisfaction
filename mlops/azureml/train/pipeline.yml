@@ -13,10 +13,15 @@ inputs:
 
 outputs:
   train_data:
+    mode: upload
   test_data:
+    mode: upload
   trained_model:
+    mode: upload
   evaluation_output:
+    mode: upload
   model_info_output_path:
+    mode: upload
 # </inputs_and_outputs>
 
 # <jobs>
