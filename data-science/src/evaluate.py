@@ -28,6 +28,8 @@ def parse_args():
     parser = argparse.ArgumentParser("predict")
     parser.add_argument("--model_name", type=str, help="Name of registered model")
     parser.add_argument("--model_input", type=str, help="Path of input model")
+    parser.add_argument("--base_input", type=str, help="Path of base model")
+    parser.add_argument("--scaler", type=str, help="Path of feature engineering pipeline")
     parser.add_argument("--test_data", type=str, help="Path to test dataset")
     parser.add_argument("--evaluation_output", type=str, help="Path of eval results")
     parser.add_argument("--runner", type=str, help="Local or Cloud Runner", default="CloudRunner")
