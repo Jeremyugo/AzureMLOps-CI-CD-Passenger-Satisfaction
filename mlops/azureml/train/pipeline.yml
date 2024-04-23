@@ -54,8 +54,8 @@ jobs:
     command: >-
       python train.py
       --train_data ${{inputs.train_data}}
-      --base_path ${{outputs.base_output}}
-      --model_path ${{outputs.model_output}}
+      --base_output ${{outputs.base_output}}
+      --model_output ${{outputs.model_output}}
     environment: azureml:passenger-train-env@latest
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
