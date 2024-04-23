@@ -28,7 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser("predict")
     parser.add_argument("--model_name", type=str, help="Name of registered model")
     parser.add_argument("--model_input", type=str, help="Path of input model")
-    parser.add_argument("--base_input", type=str, help="Path of base model")
+    parser.add_argument("--base_output", type=str, help="Path of base model")
     parser.add_argument("--scaler", type=str, help="Path of feature engineering pipeline")
     parser.add_argument("--test_data", type=str, help="Path to test dataset")
     parser.add_argument("--evaluation_output", type=str, help="Path of eval results")
@@ -147,6 +147,8 @@ if __name__ == "__main__":
     lines = [
         f"Model name: {args.model_name}",
         f"Model path: {args.model_input}",
+        f"Base path: {args.base_output}",
+        f"Feature engineering path: {args.scaler}",
         f"Test data path: {args.test_data}",
         f"Evaluation output path: {args.evaluation_output}",
     ]
