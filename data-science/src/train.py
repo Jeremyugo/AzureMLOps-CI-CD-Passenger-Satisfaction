@@ -32,7 +32,8 @@ def parse_args():
 
     parser = argparse.ArgumentParser("train")
     parser.add_argument("--train_data", type=str, help="Path to train dataset")
-    parser.add_argument("--model_output", type=str, help="Path of output model")
+    parser.add_argument("--base_output", type=str, help="Path of base model")
+    parser.add_argument("--model_output", type=str, help="Path of custom model")
 
     # classifier specific arguments
     parser.add_argument('--classifier__n_estimators', type=int, default=100,
@@ -172,7 +173,7 @@ def main(args):
 
         
         # Save the model
-        mlflow.sklearn.save_model(model, path="random_forest_model", signature=signature)
+        mlflow.sklearn.save_model(model, path=args.base_output, signature=signature)
         
         
         class CustomPredict(mlflow.pyfunc.PythonModel):
@@ -215,7 +216,8 @@ if __name__ == "__main__":
 
     lines = [
         f"Train dataset input path: {args.train_data}",
-        f"Model output path: {args.model_output}",
+        f"Base model path: {args.base_output}",
+        f"Custom model path: {args.model_output}",
         f"n_estimators: {args.classifier__n_estimators}",
         f"bootstrap: {args.classifier__bootstrap}",
         f"max_depth: {args.classifier__max_depth}",
