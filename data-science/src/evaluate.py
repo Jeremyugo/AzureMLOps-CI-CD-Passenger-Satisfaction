@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import seaborn as sns
 
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, confusion_matrix
@@ -93,16 +92,6 @@ def model_evaluation(X_test, y_test, model, evaluation_output):
             "roc_auc_score": roc_score
         })
 
-    # Visualize results
-    conf_matrix_pred = cross_val_predict(model, X_test, y_test, cv = 3)
-    conf_matrix = confusion_matrix(conf_matrix_pred, y_test)
-    conf_matrix = conf_matrix / conf_matrix.sum(axis=0)
-    
-    sns.heatmap(conf_matrix, annot = True, fmt = '.1%', cmap = 'gray_r', xticklabels = ['Predicted Negative','Predicted Positive'],
-            yticklabels = ['Actual Negative','Actual Positive'], annot_kws = {'weight':'bold', 'size':12})
-    plt.title('Confusion matrix of model predictions', fontsize = 16)
-    plt.savefig("test_confusion_matrix.png")
-    mlflow.log_artifact("test_confusion_matrix.png")
 
     return yhat_test, f1score
 
