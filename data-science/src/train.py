@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import seaborn as sns
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -171,17 +170,7 @@ def main(args):
             "roc_auc_score": roc_score
         })
 
-        # Visualize results
-        conf_matrix_pred = cross_val_predict(model, X_train_scaled, y_train, cv = 3)
-        conf_matrix = confusion_matrix(conf_matrix_pred, y_train)
-        conf_matrix = conf_matrix / conf_matrix.sum(axis=0)
         
-        sns.heatmap(conf_matrix, annot = True, fmt = '.1%', cmap = 'gray_r', xticklabels = ['Predicted Negative','Predicted Positive'],
-                yticklabels = ['Actual Negative','Actual Positive'], annot_kws = {'weight':'bold', 'size':12})
-        plt.title('Confusion matrix of model predictions', fontsize = 16)
-        plt.savefig("confusion_matrix.png")
-        mlflow.log_artifact("confusion_matrix.png")
-
         # Save the model
         mlflow.sklearn.save_model(model, path="random_forest_model", signature=signature)
         
