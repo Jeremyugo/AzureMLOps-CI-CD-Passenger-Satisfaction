@@ -14,10 +14,10 @@ inputs:
 outputs:
   train_data:
     type: uri_file
-    mode: upload
+    mode: azureml:train-output@latest
   test_data:
     type: uri_file
-    mode: upload
+    mode: azureml:test-output@latest
   trained_model:
     type: uri_file
     mode: upload
