@@ -14,7 +14,8 @@ inputs:
 outputs:
   train_data:
   test_data:
-  trained_model:
+  base_model:
+  custom_model:
   evaluation_output:
   model_info_output_path:
 # </inputs_and_outputs>
@@ -53,12 +54,14 @@ jobs:
     command: >-
       python train.py
       --train_data ${{inputs.train_data}}
+      --base_output ${{outputs.base_model}}
       --model_output ${{outputs.model_output}}
     environment: azureml:passenger-train-env@latest
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
     outputs:
-      model_output: ${{parent.outputs.trained_model}}
+      base_model: ${{parent.outputs.base_model}}
+      model_output: ${{parent.outputs.custom_model}}
 
   evaluate_model:
     name: evaluate_model
