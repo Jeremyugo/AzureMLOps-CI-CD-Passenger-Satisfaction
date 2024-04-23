@@ -193,7 +193,7 @@ def main(args):
                 return class_predictions
             
             def load_context(self, context=None):
-                self.model = mlflow.sklearn.load_model("random_forest_model") ###################
+                self.model = mlflow.sklearn.load_model(args.base_output) ###################
                 return self.model
             
             def predict(self, context, model_input):
