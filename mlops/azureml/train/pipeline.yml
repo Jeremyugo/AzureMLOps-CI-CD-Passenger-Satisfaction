@@ -13,20 +13,10 @@ inputs:
 
 outputs:
   train_data:
-    type: uri_file
-    mode: azureml:train-output@latest
   test_data:
-    type: uri_file
-    mode: azureml:test-output@latest
   trained_model:
-    type: uri_file
-    mode: upload
   evaluation_output:
-    type: uri_file
-    mode: upload
   model_info_output_path:
-    type: uri_file
-    mode: upload
 # </inputs_and_outputs>
 
 # <jobs>
