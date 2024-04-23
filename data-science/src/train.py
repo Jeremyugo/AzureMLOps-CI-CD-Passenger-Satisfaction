@@ -173,9 +173,8 @@ def main(args):
     
     class CustomPredict(mlflow.pyfunc.PythonModel):
         def __init__(self,):
-            self.run_id = run_id
             self.class_names = np.array(["neutral or dissatisfied", "satisfied"])
-            self.full_pipeline = full_pipeline
+            self.full_pipeline = mlflow.sklearn.load_model(args.scaler)
             
         def process_inference_data(self, model_input):
             model_input = self.full_pipeline.transform(model_input)
