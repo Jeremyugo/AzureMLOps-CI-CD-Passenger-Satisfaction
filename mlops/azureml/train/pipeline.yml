@@ -74,14 +74,14 @@ jobs:
       python evaluate.py
       --model_name ${{inputs.model_name}}
       --model_input ${{inputs.model_input}}
-      --base_input ${{inputs.base_input}}
+      --base_output ${{inputs.base_output}}
       --scaler ${{inputs.scaler}}
       --test_data ${{inputs.test_data}}
       --evaluation_output ${{outputs.evaluation_output}}
     environment: azureml:passenger-train-env@latest
     inputs:
       model_name: "passenger-model"
-      base_input: ${{parent.jobs.train_model.outputs.base_output}}
+      base_output: ${{parent.jobs.train_model.outputs.base_output}}
       model_input: ${{parent.jobs.train_model.outputs.model_output}}
       scaler: ${{parent.jobs.train_model.outputs.scaler}}
       test_data: ${{parent.jobs.prep_data.outputs.test_data}}
