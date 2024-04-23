@@ -32,8 +32,9 @@ def parse_args():
 
     parser = argparse.ArgumentParser("train")
     parser.add_argument("--train_data", type=str, help="Path to train dataset")
-    parser.add_argument("--base_path", type=str, help="Path of base model")
-    parser.add_argument("--model_path", type=str, help="Path of custom model")
+    parser.add_argument("--base_output", type=str, help="Path of base model")
+    parser.add_argument("--model_output", type=str, help="Path of custom model")
+    parser.add_argument("--scaler", type=str, help="Path of feature engineering pipeline")
 
     # classifier specific arguments
     parser.add_argument('--classifier__n_estimators', type=int, default=100,
@@ -120,94 +121,90 @@ def main(args):
     # applying transformation pieline
     X_train_scaled = full_pipeline.fit_transform(X_train)
     
-    # creating mlflow experiment 
-    mlflow.set_experiment("passenger-satisfaction-training")
-       
-    # starting mlflow run
-    with mlflow.start_run(run_name="model-training") as run:
-        run_id = run.info.run_id
         
-        # logging transformation pipeline
-        mlflow.sklearn.log_model(full_pipeline, artifact_path="feature_engineering")
+    # logging transformation pipeline
+    mlflow.sklearn.save_model(full_pipeline, path=args.scaler)
 
-        # infering data signature
-        signature = infer_signature(X_train, y_train)
-        
-        # Train a Random Forest Classification Model with the training set
-        model = RandomForestClassifier(n_estimators = args.classifier__n_estimators,
-                                    bootstrap = args.classifier__bootstrap,
-                                    max_depth = args.classifier__max_depth,
-                                    max_features = args.classifier__max_features,
-                                    min_samples_leaf = args.classifier__min_samples_leaf,
-                                    min_samples_split = args.classifier__min_samples_split,
-                                    random_state=11)
+    # infering data signature
+    signature = infer_signature(X_train, y_train)
+    
+    # Train a Random Forest Classification Model with the training set
+    model = RandomForestClassifier(n_estimators = args.classifier__n_estimators,
+                                bootstrap = args.classifier__bootstrap,
+                                max_depth = args.classifier__max_depth,
+                                max_features = args.classifier__max_features,
+                                min_samples_leaf = args.classifier__min_samples_leaf,
+                                min_samples_split = args.classifier__min_samples_split,
+                                random_state=11)
 
-        # log model hyperparameters
-        mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", args.classifier__n_estimators)
-        mlflow.log_param("bootstrap", args.classifier__bootstrap)
-        mlflow.log_param("max_depth", args.classifier__max_depth)
-        mlflow.log_param("max_features", args.classifier__max_features)
-        mlflow.log_param("min_samples_leaf", args.classifier__min_samples_leaf)
-        mlflow.log_param("min_samples_split", args.classifier__min_samples_split)
+    # log model hyperparameters
+    mlflow.log_param("model", "RandomForestClassifier")
+    mlflow.log_param("n_estimators", args.classifier__n_estimators)
+    mlflow.log_param("bootstrap", args.classifier__bootstrap)
+    mlflow.log_param("max_depth", args.classifier__max_depth)
+    mlflow.log_param("max_features", args.classifier__max_features)
+    mlflow.log_param("min_samples_leaf", args.classifier__min_samples_leaf)
+    mlflow.log_param("min_samples_split", args.classifier__min_samples_split)
 
-        # Train model with the train set
-        model.fit(X_train_scaled, y_train)
+    # Train model with the train set
+    model.fit(X_train_scaled, y_train)
 
-        # Predict using the Classification Model
-        pred = model.predict(X_train_scaled)
+    # Predict using the Classification Model
+    pred = model.predict(X_train_scaled)
 
-        # Evaluate Classification performance with the train set
-        f1score = f1_score(y_train, pred)
-        pr_score = precision_score(y_train, pred)
-        re_score = recall_score(y_train, pred)
-        roc_score = roc_auc_score(y_train, pred)
-        
-        # log model performance metrics
-        mlflow.log_metrics({
-            "f1_score": f1score,
-            "precision_score": pr_score,
-            "recall_score": re_score,
-            "roc_auc_score": roc_score
-        })
+    # Evaluate Classification performance with the train set
+    f1score = f1_score(y_train, pred)
+    pr_score = precision_score(y_train, pred)
+    re_score = recall_score(y_train, pred)
+    roc_score = roc_auc_score(y_train, pred)
+    
+    # log model performance metrics
+    mlflow.log_metrics({
+        "f1_score": f1score,
+        "precision_score": pr_score,
+        "recall_score": re_score,
+        "roc_auc_score": roc_score
+    })
 
-        
-        # Save the model
-        mlflow.sklearn.save_model(model, path=args.base_path, signature=signature)
-        
-        
-        class CustomPredict(mlflow.pyfunc.PythonModel):
-            def __init__(self,):
-                self.run_id = run_id
-                self.class_names = np.array(["neutral or dissatisfied", "satisfied"])
-                self.full_pipeline = full_pipeline
-                
-            def process_inference_data(self, model_input):
-                model_input = self.full_pipeline.transform(model_input)
-                return model_input
+    
+    # Save the model
+    mlflow.sklearn.save_model(sk_model=model, path=args.base_output, signature=signature)
+    
+    
+    class CustomPredict(mlflow.pyfunc.PythonModel):
+        def __init__(self,):
+            self.run_id = run_id
+            self.class_names = np.array(["neutral or dissatisfied", "satisfied"])
+            self.full_pipeline = full_pipeline
             
-            def process_prediction(self, predictions):
-                predictions = predictions.astype(int)
-                class_names = self.class_names
-                class_predictions = [class_names[pred] for pred in predictions]
-                return class_predictions
-            
-            def load_context(self, context=None):
-                self.model = mlflow.sklearn.load_model(args.base_path)
-                return self.model
-            
-            def predict(self, context, model_input):
-                model = self.load_context()
-                model_input = self.process_inference_data(model_input)
-                predictions = model.predict(model_input)
-                return self.process_prediction(predictions)
+        def process_inference_data(self, model_input):
+            model_input = self.full_pipeline.transform(model_input)
+            return model_input
+        
+        def process_prediction(self, predictions):
+            predictions = predictions.astype(int)
+            class_names = self.class_names
+            class_predictions = [class_names[pred] for pred in predictions]
+            return class_predictions
+        
+        def load_context(self, context=None):
+            self.model = mlflow.sklearn.load_model(args.base_output)
+            return self.model
+        
+        def predict(self, context, model_input):
+            model = self.load_context()
+            model_input = self.process_inference_data(model_input)
+            predictions = model.predict(model_input)
+            return self.process_prediction(predictions)
 
 
-        # logging the custom model
-        mlflow.pyfunc.save_model(path=args.model_path, python_model=CustomPredict(), signature=signature)
+    # saving the custom model
+    mlflow.pyfunc.save_model(path=args.model_output, python_model=CustomPredict(), signature=signature)
 
 
 if __name__ == "__main__":
+
+    mlflow.start_run()
     
     # ---------- Parse Arguments ----------- #
     # -------------------------------------- #
@@ -216,8 +213,9 @@ if __name__ == "__main__":
 
     lines = [
         f"Train dataset input path: {args.train_data}",
-        f"Base model path: {args.base_path}",
-        f"Custom model path: {args.model_path}",
+        f"Base model path: {args.base_output}",
+        f"Custom model path: {args.model_output}",
+        f"Feature engineering path: {args.scaler}",
         f"n_estimators: {args.classifier__n_estimators}",
         f"bootstrap: {args.classifier__bootstrap}",
         f"max_depth: {args.classifier__max_depth}",
