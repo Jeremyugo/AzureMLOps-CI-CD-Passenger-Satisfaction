@@ -74,6 +74,8 @@ jobs:
       python evaluate.py
       --model_name ${{inputs.model_name}}
       --model_input ${{inputs.model_input}}
+      --base_input ${{inputs.base_input}}
+      --scaler ${{inputs.scaler}}
       --test_data ${{inputs.test_data}}
       --evaluation_output ${{outputs.evaluation_output}}
     environment: azureml:passenger-train-env@latest
