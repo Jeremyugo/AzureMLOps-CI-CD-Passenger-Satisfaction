@@ -15,6 +15,7 @@ outputs:
   train_data:
   test_data:
   base_model:
+  feature_engineering: 
   custom_model:
   evaluation_output:
   model_info_output_path:
@@ -56,12 +57,14 @@ jobs:
       --train_data ${{inputs.train_data}}
       --base_output ${{outputs.base_output}}
       --model_output ${{outputs.model_output}}
+      --scaler ${{outputs.scaler}}
     environment: azureml:passenger-train-env@latest
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
     outputs:
       base_output: ${{parent.outputs.base_model}}
       model_output: ${{parent.outputs.custom_model}}
+      scaler: ${{parent.outputs.feature_engineering}}
 
   evaluate_model:
     name: evaluate_model
@@ -76,7 +79,9 @@ jobs:
     environment: azureml:passenger-train-env@latest
     inputs:
       model_name: "passenger-model"
+      base_input: ${{parent.jobs.train_model.outputs.base_output}}
       model_input: ${{parent.jobs.train_model.outputs.model_output}}
+      scaler: ${{parent.jobs.train_model.outputs.scaler}}
       test_data: ${{parent.jobs.prep_data.outputs.test_data}}
     outputs:
       evaluation_output: ${{parent.outputs.evaluation_output}}
