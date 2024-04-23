@@ -32,8 +32,8 @@ def parse_args():
 
     parser = argparse.ArgumentParser("train")
     parser.add_argument("--train_data", type=str, help="Path to train dataset")
-    parser.add_argument("--base_output", type=str, help="Path of base model")
-    parser.add_argument("--model_output", type=str, help="Path of custom model")
+    parser.add_argument("--base_path", type=str, help="Path of base model")
+    parser.add_argument("--model_path", type=str, help="Path of custom model")
 
     # classifier specific arguments
     parser.add_argument('--classifier__n_estimators', type=int, default=100,
@@ -173,7 +173,7 @@ def main(args):
 
         
         # Save the model
-        mlflow.sklearn.save_model(model, path=args.base_output, signature=signature)
+        mlflow.sklearn.save_model(model, path=args.base_path, signature=signature)
         
         
         class CustomPredict(mlflow.pyfunc.PythonModel):
@@ -193,7 +193,7 @@ def main(args):
                 return class_predictions
             
             def load_context(self, context=None):
-                self.model = mlflow.sklearn.load_model(args.base_output)
+                self.model = mlflow.sklearn.load_model(args.base_path)
                 return self.model
             
             def predict(self, context, model_input):
@@ -204,7 +204,7 @@ def main(args):
 
 
         # logging the custom model
-        mlflow.pyfunc.save_model(path=args.model_output, python_model=CustomPredict(), signature=signature)
+        mlflow.pyfunc.save_model(path=args.model_path, python_model=CustomPredict(), signature=signature)
 
 
 if __name__ == "__main__":
@@ -216,8 +216,8 @@ if __name__ == "__main__":
 
     lines = [
         f"Train dataset input path: {args.train_data}",
-        f"Base model path: {args.base_output}",
-        f"Custom model path: {args.model_output}",
+        f"Base model path: {args.base_path}",
+        f"Custom model path: {args.model_path}",
         f"n_estimators: {args.classifier__n_estimators}",
         f"bootstrap: {args.classifier__bootstrap}",
         f"max_depth: {args.classifier__max_depth}",
