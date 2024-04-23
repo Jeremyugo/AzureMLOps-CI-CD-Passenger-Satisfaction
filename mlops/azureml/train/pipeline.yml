@@ -14,10 +14,10 @@ inputs:
 outputs:
   train_data:
     type: azureml_datastore
-    path_on_datastore: passenger-satisfaction-training/train_data
+    path: passenger-satisfaction-training/train_data
   test_data:
     type: azureml_datastore
-    path_on_datastore: passenger-satisfaction-training/test_data
+    path: passenger-satisfaction-training/test_data
   trained_model:
   evaluation_output:
   model_info_output_path:
