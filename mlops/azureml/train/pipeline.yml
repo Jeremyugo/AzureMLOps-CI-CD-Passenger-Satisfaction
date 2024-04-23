@@ -13,11 +13,11 @@ inputs:
 
 outputs:
   train_data:
-    type: azureml_datastore
-    path: passenger-satisfaction-training/train_data
+    type: uri_file
+    mode: upload
   test_data:
-    type: azureml_datastore
-    path: passenger-satisfaction-training/test_data
+    type: uri_file
+    mode: upload
   trained_model:
   evaluation_output:
   model_info_output_path:
