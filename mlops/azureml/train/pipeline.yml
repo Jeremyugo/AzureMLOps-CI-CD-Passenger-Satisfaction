@@ -98,7 +98,7 @@ jobs:
     environment: azureml:passenger-train-env@latest
     inputs:
       model_name: "passenger-model"
-      model_path: ${{parent.jobs.train_model.outputs.model_output}}
+      model_path: ${{parent.jobs.train_model.outputs.base_output}}
       scaler: ${{parent.jobs.train_model.outputs.scaler}}
       evaluation_output: ${{parent.jobs.evaluate_model.outputs.evaluation_output}}
     outputs:
