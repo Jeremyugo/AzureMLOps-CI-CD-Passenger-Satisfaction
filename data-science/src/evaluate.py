@@ -27,8 +27,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser("predict")
     parser.add_argument("--model_name", type=str, help="Name of registered model")
-    parser.add_argument("--model_input", type=str, help="Path of input model")
-    parser.add_argument("--base_output", type=str, help="Path of base model")
+    parser.add_argument("--base_input", type=str, help="Path of base model")
     parser.add_argument("--scaler", type=str, help="Path of feature engineering pipeline")
     parser.add_argument("--test_data", type=str, help="Path to test dataset")
     parser.add_argument("--evaluation_output", type=str, help="Path of eval results")
@@ -47,12 +46,18 @@ def main(args):
     # Split the data into inputs and outputs
     y_test = test_data[TARGET_COL]
     X_test = test_data.drop(TARGET_COL, axis=1)
-
+    
+    # remapping target variables -> "{'satisfied': 1, 'neutral or dissatisfied': 0}"
+    y_test = np.where(y_test == 'satisfied', 1, 0)
+    
+    # Load transformation pipeline
+    scaler = mlflow.sklearn.load_model(args.scaler)
+    
     # Load the model from input port
-    model =  mlflow.pyfunc.load_model(args.model_input) 
+    model =  mlflow.sklearn.load_model(args.base_input) 
 
     # ---------------- Model Evaluation ---------------- #
-    yhat_test, score = model_evaluation(X_test, y_test, model, args.evaluation_output)
+    yhat_test, score = model_evaluation(X_test, y_test, model, scaler, args.evaluation_output)
 
     # ----------------- Model Promotion ---------------- #
     if args.runner == "CloudRunner":
@@ -60,8 +65,11 @@ def main(args):
 
 
 
-def model_evaluation(X_test, y_test, model, evaluation_output):
+def model_evaluation(X_test, y_test, model, scaler, evaluation_output):
 
+    # transforming the test data
+    X_test = scaler.transform(X_test)
+    
     # Get predictions to y_test (y_test)
     yhat_test = model.predict(X_test)
 
@@ -146,8 +154,7 @@ if __name__ == "__main__":
 
     lines = [
         f"Model name: {args.model_name}",
-        f"Model path: {args.model_input}",
-        f"Base path: {args.base_output}",
+        f"Base path: {args.base_input}",
         f"Feature engineering path: {args.scaler}",
         f"Test data path: {args.test_data}",
         f"Evaluation output path: {args.evaluation_output}",

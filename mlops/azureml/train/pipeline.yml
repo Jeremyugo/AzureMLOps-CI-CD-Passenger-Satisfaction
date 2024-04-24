@@ -56,14 +56,12 @@ jobs:
       python train.py
       --train_data ${{inputs.train_data}}
       --base_output ${{outputs.base_output}}
-      --model_output ${{outputs.model_output}}
       --scaler ${{outputs.scaler}}
     environment: azureml:passenger-train-env@latest
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
     outputs:
       base_output: ${{parent.outputs.base_model}}
-      model_output: ${{parent.outputs.custom_model}}
       scaler: ${{parent.outputs.feature_engineering}}
 
   evaluate_model:
@@ -73,16 +71,14 @@ jobs:
     command: >-
       python evaluate.py
       --model_name ${{inputs.model_name}}
-      --model_input ${{inputs.model_input}}
-      --base_output ${{inputs.base_output}}
+      --base_input ${{inputs.base_input}}
       --scaler ${{inputs.scaler}}
       --test_data ${{inputs.test_data}}
       --evaluation_output ${{outputs.evaluation_output}}
     environment: azureml:passenger-train-env@latest
     inputs:
       model_name: "passenger-model"
-      base_output: ${{parent.jobs.train_model.outputs.base_output}}
-      model_input: ${{parent.jobs.train_model.outputs.model_output}}
+      base_input: ${{parent.jobs.train_model.outputs.base_output}}
       scaler: ${{parent.jobs.train_model.outputs.scaler}}
       test_data: ${{parent.jobs.prep_data.outputs.test_data}}
     outputs:
@@ -96,12 +92,14 @@ jobs:
       python register.py
       --model_name ${{inputs.model_name}}
       --model_path ${{inputs.model_path}}
+      --scaler ${{inputs.scaler}}
       --evaluation_output ${{inputs.evaluation_output}}
       --model_info_output_path ${{outputs.model_info_output_path}}
     environment: azureml:passenger-train-env@latest
     inputs:
       model_name: "passenger-model"
       model_path: ${{parent.jobs.train_model.outputs.model_output}}
+      scaler: ${{parent.jobs.train_model.outputs.scaler}}
       evaluation_output: ${{parent.jobs.evaluate_model.outputs.evaluation_output}}
     outputs:
       model_info_output_path: ${{parent.outputs.model_info_output_path}}

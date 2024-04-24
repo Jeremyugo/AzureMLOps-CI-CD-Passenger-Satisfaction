@@ -33,7 +33,6 @@ def parse_args():
     parser = argparse.ArgumentParser("train")
     parser.add_argument("--train_data", type=str, help="Path to train dataset")
     parser.add_argument("--base_output", type=str, help="Path of base model")
-    parser.add_argument("--model_output", type=str, help="Path of custom model")
     parser.add_argument("--scaler", type=str, help="Path of feature engineering pipeline")
 
     # classifier specific arguments
@@ -171,36 +170,6 @@ def main(args):
     mlflow.sklearn.save_model(sk_model=model, path=args.base_output, signature=signature)
     
     
-    class CustomPredict(mlflow.pyfunc.PythonModel):
-        def __init__(self,):
-            self.class_names = np.array(["neutral or dissatisfied", "satisfied"])
-            self.full_pipeline = mlflow.sklearn.load_model(args.scaler)
-            
-        def process_inference_data(self, model_input):
-            model_input = self.full_pipeline.transform(model_input)
-            return model_input
-        
-        def process_prediction(self, predictions):
-            predictions = predictions.astype(int)
-            class_names = self.class_names
-            class_predictions = [class_names[pred] for pred in predictions]
-            return class_predictions
-        
-        def load_context(self, context=None):
-            self.model = mlflow.sklearn.load_model(args.base_output)
-            return self.model
-        
-        def predict(self, context, model_input):
-            model = self.load_context()
-            model_input = self.process_inference_data(model_input)
-            predictions = model.predict(model_input)
-            return self.process_prediction(predictions)
-
-
-    # saving the custom model
-    mlflow.pyfunc.save_model(path=args.model_output, python_model=CustomPredict(), signature=signature)
-
-
 if __name__ == "__main__":
 
     mlflow.start_run()
@@ -213,7 +182,6 @@ if __name__ == "__main__":
     lines = [
         f"Train dataset input path: {args.train_data}",
         f"Base model path: {args.base_output}",
-        f"Custom model path: {args.model_output}",
         f"Feature engineering path: {args.scaler}",
         f"n_estimators: {args.classifier__n_estimators}",
         f"bootstrap: {args.classifier__bootstrap}",
