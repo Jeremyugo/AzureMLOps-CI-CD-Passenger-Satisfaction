@@ -67,6 +67,9 @@ def main(args):
 
 def model_evaluation(X_test, y_test, model, scaler, evaluation_output):
 
+    # create a copy of test data
+    output_data = X_test.copy()
+    
     # transforming the test data
     X_test = scaler.transform(X_test)
     
@@ -74,7 +77,6 @@ def model_evaluation(X_test, y_test, model, scaler, evaluation_output):
     yhat_test = model.predict(X_test)
 
     # Save the output data with feature columns, predicted cost, and actual cost in csv file
-    output_data = X_test.copy()
     output_data["real_label"] = y_test
     output_data["predicted_label"] = yhat_test
     output_data.to_csv((Path(evaluation_output) / "predictions.csv"))
