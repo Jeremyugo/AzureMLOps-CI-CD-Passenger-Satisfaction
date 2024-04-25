@@ -19,7 +19,7 @@ b. Azure DevOps account (with parallelism - to run parallel jobs)
 ### 1. MLOps Architecture
 ![classical-ml-architecture](https://github.com/Jeremyugo/AzureMLOps-CI-CD-Passenger-Satisfaction/assets/36512525/d2535fda-47bf-4c35-b1d1-f6d7093c0ea7)
 
-### 2. MLOps Infrastructure build
+### 2. MLOps Infrastructure build - AzureDevOps
 ![Infra-build](https://github.com/Jeremyugo/AzureMLOps-CI-CD-Passenger-Satisfaction/assets/36512525/b89493bc-707d-4409-bd11-941632d6bb1d)
 
 ### 3. GitHub Actions - Model Training
