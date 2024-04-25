@@ -86,7 +86,7 @@ def main(args):
 
 
         # saving the custom model
-        mlflow.pyfunc.log_model("custom_model", python_model=CustomPredict())
+        mlflow.pyfunc.log_model(args.model_name, python_model=CustomPredict())
         
         # registering models
         mlflow_model = mlflow.register_model(scaler_uri, "scaler")
